@@ -1,0 +1,68 @@
+---
+
+# TODO PR, release; include ssh.cfg and inventory not being committed or being encrypted
+# TODO Fix the SSL issues
+
+
+- name: Create a folder for CFL
+  file:
+    path: "/opt/cfl"
+    state: directory
+    recurse: yes
+    owner: "{{deploy_user}}"
+    group: "{{deploy_group}}"
+    mode: 0775
+  become: yes
+  tags: ["cfl"]
+
+- name: Download and extract CFL
+  ansible.builtin.unarchive:
+    src: https://github.com/savannahghi/cfl-distribution/archive/refs/tags/v{{cfl_version}}.tar.gz
+    dest: /opt/cfl
+    group: "{{deploy_group}}"
+    owner: "{{deploy_user}}"
+    mode: 0775
+    remote_src: yes
+  become: yes
+  become_user: "{{deploy_user}}"
+  tags: ["cfl"]
+
+- name: set up a debug variable to hold docker compose output
+  ansible.builtin.debug:
+    var: output
+  become: yes
+  become_user: "{{deploy_user}}"
+  tags: ["cfl"]
+
+- name: Install docker python library
+  pip:
+    name: docker
+  become: yes
+  tags: ["cfl"]
+
+- name: Install docker-compose python library
+  pip:
+    name: docker-compose
+  become: yes
+  tags: ["cfl"]
+
+- name: Run `docker-compose up` to start CFL
+  community.docker.docker_compose:
+    project_src: "/opt/cfl/cfl-distribution-{{cfl_version}}/cfl"
+    files:
+      - docker-compose.yml
+      - docker-compose.prod.yml
+    state: present
+    build: yes
+    pull: yes
+    nocache: yes
+    debug: yes
+    dependencies: yes
+    recreate: always
+    restarted: yes
+  become: yes
+  become_user: "{{deploy_user}}"
+  register: output
+  tags: ["cfl", "compose"]
+
+# TODO Start compose on reboot
